@@ -9,7 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { compileSolidity } from "./actions";
 import CodeOutput from "@/components/code-output";
-import { Loader2, AlertTriangle, Wallet, Check, Copy, UploadCloud } from "lucide-react";
+import { Loader2, AlertTriangle, Wallet, Check, Copy, UploadCloud, Eye } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 type CompilationOutput = {
   abi: any[];
@@ -18,6 +19,7 @@ type CompilationOutput = {
 
 export default function Home() {
   const { toast } = useToast();
+  const router = useRouter();
   const [isCompilePending, startCompileTransition] = useTransition();
   const [isDeployPending, startDeployTransition] = useTransition();
 
@@ -112,6 +114,14 @@ export default function Home() {
             
             const address = await contract.getAddress();
             setDeployedAddress(address);
+
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("contractData", JSON.stringify({
+                address: address,
+                abi: compilationOutput.abi
+              }));
+            }
+
             toast({
                 title: "Deployment Successful!",
                 description: `Contract deployed at address: ${address}`,
@@ -133,6 +143,10 @@ export default function Home() {
     navigator.clipboard.writeText(deployedAddress);
     setIsAddressCopied(true);
     setTimeout(() => setIsAddressCopied(false), 2000);
+  }
+
+  const handleViewContract = () => {
+    router.push('/view');
   }
 
   return (
@@ -216,6 +230,12 @@ export default function Home() {
                         </Button>
                     </div>
                 </CardContent>
+                <CardFooter>
+                    <Button onClick={handleViewContract}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Contract
+                    </Button>
+                </CardFooter>
             </Card>
           )}
         </div>
