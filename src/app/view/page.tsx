@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertTriangle, ChevronRight, Home } from "lucide-react";
+import { Loader2, AlertTriangle, ChevronRight, Home, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ContractData {
     address: string;
@@ -34,24 +35,44 @@ export default function ViewContractPage() {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
+    const [contractAddress, setContractAddress] = useState("");
+    const [contractAbi, setContractAbi] = useState("");
+    
     const [contractData, setContractData] = useState<ContractData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [functionInputs, setFunctionInputs] = useState<Record<string, any>>({});
     const [functionOutputs, setFunctionOutputs] = useState<Record<string, any>>({});
-
+    
     useEffect(() => {
         try {
             const storedData = sessionStorage.getItem("contractData");
             if (storedData) {
                 const parsedData: ContractData = JSON.parse(storedData);
-                setContractData(parsedData);
-            } else {
-                setError("No contract data found in this session.");
+                setContractAddress(parsedData.address);
+                setContractAbi(JSON.stringify(parsedData.abi, null, 2));
             }
         } catch (e) {
-            setError("Could not load contract data.");
+            // Ignore session storage errors
         }
     }, []);
+
+    const handleLoadContract = () => {
+        setError(null);
+        setContractData(null);
+        try {
+            if (!ethers.isAddress(contractAddress)) {
+                setError("Invalid contract address provided.");
+                return;
+            }
+            const parsedAbi = JSON.parse(contractAbi);
+            setContractData({ address: contractAddress, abi: parsedAbi });
+            toast({ title: "Contract Loaded", description: "You can now interact with the functions below." });
+        } catch (e: any) {
+            setError("Invalid ABI. Please ensure it's a valid JSON array.");
+            toast({ title: "Error", description: "Could not parse the ABI.", variant: "destructive" });
+        }
+    };
+
 
     const handleInputChange = (functionName: string, inputName: string, value: string) => {
         setFunctionInputs(prev => ({
@@ -133,10 +154,10 @@ export default function ViewContractPage() {
                         </AccordionTrigger>
                         <AccordionContent>
                             <div className="space-y-4 p-4 border-l-2 border-primary/50">
-                                {func.inputs.map((input) => (
-                                    <div key={input.name} className="space-y-2">
+                                {func.inputs.map((input, index) => (
+                                    <div key={`${func.name}-${input.name}-${index}`} className="space-y-2">
                                         <Label htmlFor={`${func.name}-${input.name}`} className="font-code text-sm">
-                                            {input.name} ({input.type})
+                                            {input.name || `input_${index}`} ({input.type})
                                         </Label>
                                         <Input
                                             id={`${func.name}-${input.name}`}
@@ -181,6 +202,41 @@ export default function ViewContractPage() {
                         Back to Deploy
                     </Button>
                 </header>
+                
+                 <Card className="shadow-lg mb-8">
+                    <CardHeader>
+                        <CardTitle>Load Contract</CardTitle>
+                        <CardDescription>Enter a contract address and its ABI to interact with it.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                           <Label htmlFor="contract-address">Contract Address</Label>
+                           <Input 
+                                id="contract-address"
+                                placeholder="0x..."
+                                value={contractAddress}
+                                onChange={e => setContractAddress(e.target.value)}
+                                className="font-code"
+                           />
+                        </div>
+                         <div className="space-y-2">
+                           <Label htmlFor="contract-abi">Contract ABI</Label>
+                           <Textarea 
+                                id="contract-abi"
+                                placeholder='[{"inputs": [], "name": "myFunction", ...}]'
+                                value={contractAbi}
+                                onChange={e => setContractAbi(e.target.value)}
+                                className="font-code min-h-[150px]"
+                           />
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleLoadContract} disabled={!contractAddress || !contractAbi}>
+                            <Search className="mr-2 h-4 w-4" />
+                            Load Contract
+                        </Button>
+                    </CardFooter>
+                </Card>
 
                 {error && (
                     <Alert variant="destructive" className="mb-8">
@@ -189,29 +245,16 @@ export default function ViewContractPage() {
                         <AlertDescription>{error}</AlertDescription>
                     </Alert>
                 )}
-
-                {!contractData && !error && (
-                    <div className="flex items-center justify-center h-64">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                )}
                 
                 {contractData && (
-                    <div className="space-y-8">
-                        <Card className="shadow-lg">
-                            <CardHeader>
-                                <CardTitle>Contract Details</CardTitle>
-                                <CardDescription>Address: <code className="font-code text-sm break-all">{contractData.address}</code></CardDescription>
-                            </CardHeader>
-                        </Card>
-
+                    <div className="space-y-8 mt-8">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Read Functions</CardTitle>
-                                <CardDescription>Query data from the contract.</CardDescription>
+                                <CardDescription>Query data from the contract at <code className="font-code text-sm">{contractData.address}</code></CardDescription>
                             </CardHeader>
                              <CardContent>
-                                {renderFunctions(readFunctions)}
+                                {readFunctions.length > 0 ? renderFunctions(readFunctions) : <p className="text-sm text-muted-foreground">No read functions in this contract.</p>}
                             </CardContent>
                         </Card>
                         
@@ -221,7 +264,7 @@ export default function ViewContractPage() {
                                 <CardDescription>Send transactions to modify contract state.</CardDescription>
                             </CardHeader>
                              <CardContent>
-                                {renderFunctions(writeFunctions)}
+                                {writeFunctions.length > 0 ? renderFunctions(writeFunctions) : <p className="text-sm text-muted-foreground">No write functions in this contract.</p>}
                             </CardContent>
                         </Card>
                     </div>

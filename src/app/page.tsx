@@ -11,6 +11,7 @@ import { compileSolidity } from "./actions";
 import CodeOutput from "@/components/code-output";
 import { Loader2, AlertTriangle, Wallet, Check, Copy, UploadCloud, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type CompilationOutput = {
   abi: any[];
@@ -153,9 +154,16 @@ export default function Home() {
     <main className="container mx-auto px-4 py-8 md:py-12">
       <div className="max-w-3xl mx-auto">
         <header className="flex flex-col sm:flex-row justify-between sm:items-center mb-10">
-          <h1 className="text-4xl md:text-5xl font-headline font-bold text-heading mb-4 sm:mb-0">
-            EthDeploy
-          </h1>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-4xl md:text-5xl font-headline font-bold text-heading">
+              EthDeploy
+            </h1>
+            <nav>
+                <Link href="/view" className="text-sm text-primary hover:underline">
+                    or view an existing contract
+                </Link>
+            </nav>
+          </div>
           <Button onClick={handleConnectWallet} disabled={!!walletAddress}>
             <Wallet className="mr-2 h-4 w-4" />
             {walletAddress ? `Connected: ${walletAddress.substring(0, 6)}...` : "Connect Wallet"}
@@ -166,7 +174,7 @@ export default function Home() {
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="text-2xl font-headline">1. Input Solidity Code</CardTitle>
-              <CardDescription>Paste your .sol file content below.</CardDescription>
+              <CardDescription>Paste your .sol file content below to compile and deploy.</CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
@@ -233,7 +241,7 @@ export default function Home() {
                 <CardFooter>
                     <Button onClick={handleViewContract}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View Contract
+                        View & Interact with Contract
                     </Button>
                 </CardFooter>
             </Card>
