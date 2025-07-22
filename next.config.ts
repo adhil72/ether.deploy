@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  distDir: 'public',
+  distDir: '.next',
 };
 
 export default nextConfig;
